@@ -1,12 +1,12 @@
+#!/usr/bin/env python3
+
 import tensorflow as tf
-import tensorlayer as tl
 from tensorlayer.layers import InputLayer
 from tensorlayer.layers import Conv2d
 from tensorlayer.layers import BatchNormLayer
 from tensorlayer.layers import ElementwiseLayer
 from tensorlayer.layers import FlattenLayer
 from tensorlayer.layers import DenseLayer
-from tensorlayer.layers import PReluLayer
 
 
 def classifier(t_image, is_train=False, reuse=False):
@@ -52,10 +52,7 @@ def parametric_relu(_x):
     :param _x:
     :return:
     """
-    alphas = tf.get_variable('alpha', _x.get_shape()[-1],
-                             initializer=tf.constant_initializer(0.0),
-                             dtype=tf.float32)
+    alphas = tf.get_variable('alpha', _x.get_shape()[-1], initializer=tf.constant_initializer(0.0), dtype=tf.float32)
     pos = tf.nn.relu(_x)
     neg = alphas * (_x - abs(_x)) * 0.5
-
     return pos + neg

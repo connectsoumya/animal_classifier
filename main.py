@@ -4,8 +4,6 @@ from datagenerator import DataGenerator
 from datagenerator import preprocess_image
 from network import classifier
 import tensorflow as tf
-import argparse
-import sys
 from misc import save
 from misc import load
 from configparser import ConfigParser
@@ -116,12 +114,6 @@ def predict(args):
     return labels
 
 
-def parse_arguments(argv):
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--image_path', type=str, help='Absolute path of test image', default='test.jpg')
-    return parser.parse_args(argv)
-
-
 if __name__ == '__main__':
     data_file = cparser.get('DATA', 'datafile')
     data_path = cparser.get('DATA', 'datapath')
@@ -131,4 +123,3 @@ if __name__ == '__main__':
     lrate = float(cparser.get('ARGS', 'lrate'))
     dg = DataGenerator(data_file, data_path, batch_size, epochs)
     train(data_generator=dg, learning_rate=lrate, model_path=model_path, epochs=epochs)
-    predict(parse_arguments(sys.argv[1:]))  # comment this line for training
