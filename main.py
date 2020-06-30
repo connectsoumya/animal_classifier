@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
 
 from datagenerator import DataGenerator
+from datagenerator import preprocess_image
 from network import classifier
 import tensorflow as tf
-import os
+import argparse
+import sys
 from misc import save
 from misc import load
 from configparser import ConfigParser
 import logging
 import logging.config
 import numpy as np
+from misc import center_loss
 
 # GENERAL CONFIG
-parser = ConfigParser()
-parser.read('config.ini')
+cparser = ConfigParser()
+cparser.read('config.ini')
 log_file_path = 'logging.ini'
 logging.config.fileConfig(log_file_path)
 # TF CONFIG
@@ -36,13 +39,22 @@ def train(data_generator, learning_rate, model_path, epochs):
     # build graph
     data_batch = tf.placeholder(dtype=tf.float32, shape=(None, 128, 128, 3), name='data_batch')
     label_batch = tf.placeholder(dtype=tf.float32, shape=(None, 3), name='label_batch')
-    predicted_logits = classifier(data_batch, is_train=True)
+    predicted_logits, features = classifier(data_batch, is_train=True)
     predicted_logits = predicted_logits.outputs
-    predicted_logits_test = classifier(data_batch, is_train=False, reuse=True)
+    features = features.outputs
+    predicted_logits_test, _ = classifier(data_batch, is_train=False, reuse=True)
     predicted_logits_test = predicted_logits_test.outputs
     predicted_labels = tf.nn.softmax(predicted_logits_test)
+    # get losses
+    # crossentropy_loss = tf.reduce_mean(
+    #     tf.nn.softmax_cross_entropy_with_logits_v2(labels=label_batch, logits=predicted_logits))
+    crossentropy_loss = tf.reduce_mean(
+        tf.nn.sparse_softmax_cross_entropy_with_logits(labels=tf.argmax(label_batch, axis=1),
+                                                       logits=predicted_logits))
+    c_loss, _ = center_loss(features, label_batch, 0.95, 3)
+    tr_loss = crossentropy_loss + 0.2 * c_loss
+    # optimize
     optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
-    tr_loss = tf.losses.softmax_cross_entropy(label_batch, predicted_logits, label_smoothing=0.1)
     trainable_vars = tf.trainable_variables()
     grad = optimizer.compute_gradients(tr_loss, var_list=trainable_vars)
     opt = optimizer.apply_gradients(grad)
@@ -61,6 +73,8 @@ def train(data_generator, learning_rate, model_path, epochs):
         # train
         while current_epoch < epochs:
             img_data, label_data, epoch_new, iters = next(train_data)
+            noise = np.random.randint(-10, 10, size=label_data.shape) / 100.0
+            label_data += noise
             _, loss = sess.run(fetches=[opt, tr_loss], feed_dict={data_batch: img_data,
                                                                   label_batch: label_data})
             print('\r iters: {} epochs: {} train loss: {} test accuracy: {}'.format(iters, epoch_new, loss, acc),
@@ -72,7 +86,8 @@ def train(data_generator, learning_rate, model_path, epochs):
                 for img_data, label_data in test_data:
                     pred = sess.run(fetches=predicted_labels, feed_dict={data_batch: img_data})
                     pred = np.rint(pred)
-                    accuracy.append(1 - (np.mean(np.abs(label_data - pred))))
+                    correct_pred = np.equal(np.argmax(label_data, axis=1), np.argmax(pred, axis=1)).tolist()
+                    accuracy += correct_pred
                 accuracy = sum(accuracy) / len(accuracy)
                 acc = accuracy
                 logging.info('iters: %5d, epochs: %3d, train loss: %2.3f, test accuracy: %2.3f' % (
@@ -81,16 +96,39 @@ def train(data_generator, learning_rate, model_path, epochs):
                 save(sess, model_path)
 
 
-def predict():
-    pass
+def predict(args):
+    image_path = args.image_
+    image_batch = preprocess_image(image_path)
+    data_batch = tf.placeholder(dtype=tf.float32, shape=(None, 128, 128, 3), name='data_batch')
+    predicted_logits_test, _ = classifier(data_batch, is_train=False)
+    predicted_logits_test = predicted_logits_test.outputs
+    predicted_labels = tf.nn.softmax(predicted_logits_test)
+    with tf.Session(config=config) as sess:
+        sess.run(tf.global_variables_initializer())
+        # load weights
+        load(sess, model_path)
+        logging.info('Pre-trained weights loaded')
+        pred = sess.run(fetches=predicted_labels, feed_dict={data_batch: image_batch})
+        pred = np.rint(pred)
+    pred_labels = np.argmax(pred, axis=1).tolist()
+    label_set = ['cat', 'horse', 'squirrel']
+    labels = [label_set[i] for i in pred_labels]
+    return labels
+
+
+def parse_arguments(argv):
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--image_path', type=str, help='Absolute path of test image', default='test.jpg')
+    return parser.parse_args(argv)
 
 
 if __name__ == '__main__':
-    data_file = parser.get('DATA', 'datafile')
-    data_path = parser.get('DATA', 'datapath')
-    model_path = parser.get('ARGS', 'modelpath')
-    batch_size = int(parser.get('ARGS', 'batchsize'))
-    epochs = int(parser.get('ARGS', 'epochs'))
-    lrate = float(parser.get('ARGS', 'lrate'))
+    data_file = cparser.get('DATA', 'datafile')
+    data_path = cparser.get('DATA', 'datapath')
+    model_path = cparser.get('ARGS', 'modelpath')
+    batch_size = int(cparser.get('ARGS', 'batchsize'))
+    epochs = int(cparser.get('ARGS', 'epochs'))
+    lrate = float(cparser.get('ARGS', 'lrate'))
     dg = DataGenerator(data_file, data_path, batch_size, epochs)
     train(data_generator=dg, learning_rate=lrate, model_path=model_path, epochs=epochs)
+    predict(parse_arguments(sys.argv[1:]))  # comment this line for training

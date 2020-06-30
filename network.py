@@ -40,8 +40,10 @@ def classifier(t_image, is_train=False, reuse=False):
         # residual blocks end
         n = Conv2d(n, 128, (3, 3), (2, 2), act=None, padding='SAME', W_init=w_init, name='n256s1/1')
         n = FlattenLayer(n)
+        feat = DenseLayer(n, n_units=64, name='dense64')
+        n = InputLayer(parametric_relu(feat.outputs), name='feat_act')
         n = DenseLayer(n, n_units=3, name='dense3')
-    return n
+    return n, feat
 
 
 def parametric_relu(_x):

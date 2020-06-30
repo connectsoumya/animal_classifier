@@ -16,6 +16,53 @@ data_file = parser.get('DATA', 'datafile')
 data_path = parser.get('DATA', 'datapath')
 
 
+def add_margin(pil_img, top, right, bottom, left):
+    """
+    pad rectangular images with 0 to make it square
+    :param pil_img:
+    :param top:
+    :param right:
+    :param bottom:
+    :param left:
+    :return:
+    """
+    width, height = pil_img.size
+    new_width = width + right + left
+    new_height = height + top + bottom
+    result = Image.new(pil_img.mode, (new_width, new_height), (0, 0, 0))
+    result.paste(pil_img, (left, top))
+    return result
+
+
+def preprocess_image(image_path, angle=0, zero_padding=True):
+    """
+    preprocess the images
+    :param image_path:
+    :param angle:
+    :return:
+    """
+    image = Image.open(image_path)
+    if zero_padding:
+        if angle != 0:
+            image = image.rotate((360 - angle), expand=True)
+        width, height = image.size
+        if width != height:
+            pad_top, pad_bottom, pad_left, pad_right = 0, 0, 0, 0
+            if width > height:
+                diff = width - height
+                pad_top = int(diff / 2)
+                pad_bottom = diff - pad_top
+            else:
+                diff = height - width
+                pad_left = int(diff / 2)
+                pad_right = diff - pad_left
+            image = add_margin(image, pad_top, pad_right, pad_bottom, pad_left)
+    image = image.resize((128, 128))
+    scaled = (np.array(image) / 127.5) - 1
+    # scaled = np.array(image) / 255.0
+    return scaled
+
+
 class DataGenerator(object):
     def __init__(self, data_file, data_path, batch_size=64, epochs=100):
         self.data_file = data_file
@@ -99,51 +146,6 @@ class DataGenerator(object):
                 label, filename = filepath.split('/')
                 datalist.append((label, filename, rotation))
         return datalist
-
-    def preprocess_image(self, image_path, angle=0, zero_padding=True):
-        """
-        preprocess the images
-        :param image_path:
-        :param angle:
-        :return:
-        """
-        image = Image.open(image_path)
-        if zero_padding:
-            if angle != 0:
-                image = image.rotate((360 - angle), expand=True)
-            width, height = image.size
-            if width != height:
-                pad_top, pad_bottom, pad_left, pad_right = 0, 0, 0, 0
-                if width > height:
-                    diff = width - height
-                    pad_top = int(diff / 2)
-                    pad_bottom = diff - pad_top
-                else:
-                    diff = height - width
-                    pad_left = int(diff / 2)
-                    pad_right = diff - pad_left
-                image = self.add_margin(image, pad_top, pad_right, pad_bottom, pad_left)
-        image = image.resize((128, 128))
-        scaled = (np.array(image) / 127.5) - 1
-        return scaled
-
-    @staticmethod
-    def add_margin(pil_img, top, right, bottom, left):
-        """
-        pad rectangular images with 0 to make it square
-        :param pil_img:
-        :param top:
-        :param right:
-        :param bottom:
-        :param left:
-        :return:
-        """
-        width, height = pil_img.size
-        new_width = width + right + left
-        new_height = height + top + bottom
-        result = Image.new(pil_img.mode, (new_width, new_height), (0, 0, 0))
-        result.paste(pil_img, (left, top))
-        return result
 
 
 if __name__ == '__main__':
