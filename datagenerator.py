@@ -95,7 +95,7 @@ class DataGenerator(object):
             for label_name, fname, angle in self.train_list:
                 label = self.encoded[self.labels.index(label_name), :]
                 image_path = os.path.join(self.data_path, label_name, fname)
-                image = self.preprocess_image(image_path, int(angle), zero_padding=True)
+                image = preprocess_image(image_path, int(angle), zero_padding=True)
                 image_data.append(image)
                 label_data.append(label)
                 batch_counter += 1
@@ -119,7 +119,7 @@ class DataGenerator(object):
         for label_name, fname, angle in self.validate_list:
             label = self.encoded[self.labels.index(label_name), :]
             image_path = os.path.join(self.data_path, label_name, fname)
-            image = self.preprocess_image(image_path, int(angle), zero_padding=True)
+            image = preprocess_image(image_path, int(angle), zero_padding=True)
             image_data.append(image)
             label_data.append(label)
             batch_counter += 1

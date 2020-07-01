@@ -18,7 +18,7 @@ foo@bar:~$ python -m main
 ### Testing
 * To test on a single image run the following command in terminal
 ```console
-foo@bar:~$ python -m test /path/to/image
+foo@bar:~$ python -m test --image_path /path/to/image
 ```
 
 ### Miscellaneous

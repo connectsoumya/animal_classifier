@@ -83,7 +83,6 @@ def train(data_generator, learning_rate, model_path, epochs):
                 accuracy = []
                 for img_data, label_data in test_data:
                     pred = sess.run(fetches=predicted_labels, feed_dict={data_batch: img_data})
-                    pred = np.rint(pred)
                     correct_pred = np.equal(np.argmax(label_data, axis=1), np.argmax(pred, axis=1)).tolist()
                     accuracy += correct_pred
                 accuracy = sum(accuracy) / len(accuracy)

@@ -23,7 +23,8 @@ config.gpu_options.allow_growth = True
 
 def predict(args):
     image_path = args.image_path
-    image_batch = preprocess_image(image_path)
+    image = preprocess_image(image_path)
+    image_batch = np.expand_dims(image, axis=0)
     data_batch = tf.placeholder(dtype=tf.float32, shape=(None, 128, 128, 3), name='data_batch')
     predicted_logits_test, _ = classifier(data_batch, is_train=False)
     predicted_logits_test = predicted_logits_test.outputs
@@ -34,11 +35,10 @@ def predict(args):
         load(sess, model_path)
         logging.info('Pre-trained weights loaded')
         pred = sess.run(fetches=predicted_labels, feed_dict={data_batch: image_batch})
-        pred = np.rint(pred)
     pred_labels = np.argmax(pred, axis=1).tolist()
     label_set = ['cat', 'horse', 'squirrel']
     labels = [label_set[i] for i in pred_labels]
-    return labels
+    return labels, pred.tolist()[0]
 
 
 def parse_arguments(argv):
@@ -49,4 +49,6 @@ def parse_arguments(argv):
 
 if __name__ == '__main__':
     model_path = cparser.get('ARGS', 'modelpath')
-    predict(parse_arguments(sys.argv[1:]))  # comment this line for training
+    label, pred_probs = predict(parse_arguments(sys.argv[1:]))  # comment this line for training
+    print('Probabilities:- cat: %1.3f, horse: %1.3f, squirrel: %1.3f' % (pred_probs[0], pred_probs[1], pred_probs[2]))
+    print('Outcome %s' % label[0])
